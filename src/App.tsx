@@ -5,10 +5,14 @@ import { motion, AnimatePresence } from "motion/react";
 import LandingPage from "./components/LandingPage";
 import AdminPanel from "./components/AdminPanel";
 import MLDashboard from "./components/MLDashboard";
+import AdminLogin from "./components/AdminLogin";
 
 export default function App() {
   // Navigation tabs: customer storefront vs administration crm vs custom data models deep-dive
   const [activeTab, setActiveTab] = useState<"customer" | "admin" | "predictions">("customer");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => sessionStorage.getItem("isAdminAuthenticated") === "true"
+  );
   
   // High-level client state
   const [orders, setOrders] = useState<Order[]>([]);
@@ -153,6 +157,20 @@ export default function App() {
             >
               <TrendingUp className="w-3.5 h-3.5" /> Predicciones ML
             </button>
+
+            {isAuthenticated && (
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem("isAdminAuthenticated");
+                  setIsAuthenticated(false);
+                  setActiveTab("customer");
+                }}
+                className="px-4 py-2.5 rounded-none text-[11px] uppercase tracking-widest font-semibold flex items-center gap-2 transition-all bg-zinc-950/80 text-zinc-500 hover:text-white border border-[#b91c1c]/20 hover:border-[#b91c1c] active:scale-95"
+                id="top-nav-logout"
+              >
+                Cerrar Sesión
+              </button>
+            )}
           </nav>
 
         </div>
@@ -173,24 +191,32 @@ export default function App() {
             )}
             
             {activeTab === "admin" && (
-              <AdminPanel 
-                orders={orders}
-                loading={loading}
-                dbStatus={dbStatus}
-                refreshCounter={refreshCounter}
-                triggerRefresh={triggerRefresh}
-                onUpdateOrder={handleUpdateOrderStatus}
-                onDeleteOrder={handleDeleteOrder}
-                onAddManualOrder={handleCreateManualOrder}
-              />
+              isAuthenticated ? (
+                <AdminPanel 
+                  orders={orders}
+                  loading={loading}
+                  dbStatus={dbStatus}
+                  refreshCounter={refreshCounter}
+                  triggerRefresh={triggerRefresh}
+                  onUpdateOrder={handleUpdateOrderStatus}
+                  onDeleteOrder={handleDeleteOrder}
+                  onAddManualOrder={handleCreateManualOrder}
+                />
+              ) : (
+                <AdminLogin onSuccess={() => setIsAuthenticated(true)} />
+              )
             )}
             
             {activeTab === "predictions" && (
-              <MLDashboard 
-                dbStatus={dbStatus}
-                refreshCounter={refreshCounter}
-                triggerRefresh={triggerRefresh}
-              />
+              isAuthenticated ? (
+                <MLDashboard 
+                  dbStatus={dbStatus}
+                  refreshCounter={refreshCounter}
+                  triggerRefresh={triggerRefresh}
+                />
+              ) : (
+                <AdminLogin onSuccess={() => setIsAuthenticated(true)} />
+              )
             )}
           </motion.div>
         </AnimatePresence>
