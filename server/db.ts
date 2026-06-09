@@ -38,6 +38,111 @@ export interface CustomerAnalysis {
   is_fuga: 0 | 1; // 1 = Fuga (churned), 0 = Activo
 }
 
+export interface Product {
+  id: string; // matches frontend MenuItem.id
+  name: string;
+  category: "carne" | "abarrotes";
+  price: number;
+  description: string;
+  image: string;
+  badge?: string | null;
+  stock: number;
+}
+
+// Seed dataset for Products
+let productsFallback: Product[] = [
+  {
+    id: "lomo-vetado",
+    name: "Lomo Vetado Angus Premium",
+    category: "carne",
+    price: 18990,
+    description: "Corte de gran infiltración de grasa, garantizando un sabor y jugosidad inigualable a la parrilla.",
+    image: "🥩",
+    badge: "Más Vendido",
+    stock: 8
+  },
+  {
+    id: "entraña-fina",
+    name: "Entraña Fina Americana",
+    category: "carne",
+    price: 24990,
+    description: "Corte delgado, tierno y de cocción rápida. Ideal para comenzar cualquier asado parrillero.",
+    image: "🥩",
+    badge: "Premium",
+    stock: 12
+  },
+  {
+    id: "asado-tira",
+    name: "Asado de Tira de Exportación",
+    category: "carne",
+    price: 15990,
+    description: "Corte con hueso ideal para cocciones lentas, logrando que la carne se desprenda sola.",
+    image: "🍖",
+    badge: null,
+    stock: 15
+  },
+  {
+    id: "bife-chorizo",
+    name: "Bife de Chorizo Selección",
+    category: "carne",
+    price: 14990,
+    description: "Bife grueso tradicional argentino con una cobertura de grasa que mantiene húmedas las fibras.",
+    image: "🥩",
+    badge: null,
+    stock: 20
+  },
+  {
+    id: "costillar-cerdo",
+    name: "Costillar de Cerdo Aliñado",
+    category: "carne",
+    price: 11990,
+    description: "Costillar marinado en nuestra receta secreta de adobos chilenos y especias rústicas.",
+    image: "🍖",
+    badge: null,
+    stock: 10
+  },
+  {
+    id: "carbon-espino",
+    name: "Carbón de Espino de Alto Rendimiento (4kg)",
+    category: "abarrotes",
+    price: 5990,
+    description: "Carbón certificado artesanal con alta densidad calórica y durabilidad de braza constante.",
+    image: "🪵",
+    badge: "Indispensable",
+    stock: 45
+  },
+  {
+    id: "sal-cahuil",
+    name: "Sal de Cahuil Especiada Ahumada",
+    category: "abarrotes",
+    price: 3490,
+    description: "Sal de costa chilena extraída a mano, sazonada con merquén ahumado y romero fresco.",
+    image: "🧂",
+    badge: null,
+    stock: 30
+  },
+  {
+    id: "chimichurri",
+    name: "Chimichurri Artesanal Entre Parrilleros",
+    category: "abarrotes",
+    price: 4490,
+    description: "Aderezo tradicional de perejil, ajo, ají y aceites macerados por 15 días.",
+    image: "🥫",
+    badge: null,
+    stock: 25
+  },
+  {
+    id: "pisco-artesanal",
+    name: "Pisco Artesanal Mistral / Reservado 40°",
+    category: "abarrotes",
+    price: 12990,
+    description: "El maridaje y bajativo perfecto para coronar una jornada de asado artesanal.",
+    image: "🍾",
+    badge: null,
+    stock: 18
+  }
+];
+
 // In-Memory dataset for cloud fallback and testing
 let ordersFallback: Order[] = [
   {
@@ -191,6 +296,20 @@ async function ensureTablesExist(conn: mysql.Connection) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // 3. Create products table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`products\` (
+        \`id\` VARCHAR(50) PRIMARY KEY,
+        \`name\` VARCHAR(255) NOT NULL UNIQUE,
+        \`category\` VARCHAR(50) NOT NULL,
+        \`price\` INT NOT NULL,
+        \`description\` TEXT NOT NULL,
+        \`image\` VARCHAR(50) NOT NULL,
+        \`badge\` VARCHAR(50) NULL,
+        \`stock\` INT NOT NULL DEFAULT 10
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     // Seed tables if empty
     const [orderCountRows]: any = await conn.query("SELECT COUNT(*) as count FROM \`orders\`");
     if (orderCountRows[0].count === 0) {
@@ -210,6 +329,17 @@ async function ensureTablesExist(conn: mysql.Connection) {
         await conn.query(
           "INSERT INTO \`customers_analysis\` (id, customer_name, email, branch, monthly_spending, monthly_visits, is_fuga) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [cust.id, cust.customer_name, cust.email, cust.branch, cust.monthly_spending, cust.monthly_visits, cust.is_fuga]
+        );
+      }
+    }
+
+    const [productCountRows]: any = await conn.query("SELECT COUNT(*) as count FROM \`products\`");
+    if (productCountRows[0].count === 0) {
+      console.log("🌱 Seeding empty 'products' table in MySQL...");
+      for (const prod of productsFallback) {
+        await conn.query(
+          "INSERT INTO \`products\` (id, name, category, price, description, image, badge, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [prod.id, prod.name, prod.category, prod.price, prod.description, prod.image, prod.badge, prod.stock]
         );
       }
     }
@@ -280,6 +410,16 @@ export async function createOrder(orderData: Omit<Order, "id" | "created_at">): 
   // Always update fallbacks
   customersAnalysisFallback.push(newCustAnal);
 
+  // Update fallbacks stock
+  if (orderData.items && Array.isArray(orderData.items)) {
+    orderData.items.forEach(orderItem => {
+      const prod = productsFallback.find(p => p.name === orderItem.name);
+      if (prod) {
+        prod.stock = Math.max(0, prod.stock - orderItem.quantity);
+      }
+    });
+  }
+
   if (isFallback || !connection) {
     ordersFallback.unshift(newOrder);
     return newOrder;
@@ -304,6 +444,16 @@ export async function createOrder(orderData: Omit<Order, "id" | "created_at">): 
         "INSERT INTO \`customers_analysis\` (customer_name, email, branch, monthly_spending, monthly_visits, is_fuga) VALUES (?, ?, ?, ?, ?, ?, 0)",
         [orderData.customer_name, orderData.email, orderData.branch, orderData.total_amount, 1]
       );
+    }
+
+    // Deduct stock in DB
+    if (orderData.items && Array.isArray(orderData.items)) {
+      for (const orderItem of orderData.items) {
+        await connection.query(
+          "UPDATE \`products\` SET stock = GREATEST(0, stock - ?) WHERE name = ?",
+          [orderItem.quantity, orderItem.name]
+        );
+      }
     }
 
     return newOrder;
@@ -442,5 +592,29 @@ export async function createAnalysisRecord(data: Omit<CustomerAnalysis, "id">): 
   } catch (err) {
     console.error("⚠️ Failed inserting analysis row into MySQL:", err);
     return newRec;
+  }
+}
+
+// GET ALL PRODUCTS
+export async function getProducts(): Promise<Product[]> {
+  const { connection, isFallback } = await getDBConnection();
+  if (isFallback || !connection) {
+    return productsFallback;
+  }
+  try {
+    const [rows]: any = await connection.query("SELECT * FROM \`products\`");
+    return rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      category: r.category,
+      price: r.price,
+      description: r.description,
+      image: r.image,
+      badge: r.badge,
+      stock: r.stock
+    }));
+  } catch (err) {
+    console.error("⚠️ Failed querying products from MySQL, using fallback:", err);
+    return productsFallback;
   }
 }

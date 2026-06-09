@@ -63,4 +63,5 @@ export interface MenuItem {
   description: string;
   image: string;
   badge?: string;
+  stock: number;
 }

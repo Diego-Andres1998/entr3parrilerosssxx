@@ -3,90 +3,13 @@ import { MenuItem, OrderItem } from "../types";
 import { ShoppingCart, Flame, ShieldCheck, Mail, Send, CheckCircle, Trash2, MapPin, Truck, Award } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// Gourmet catalog of meats and grocery items
-const MENU_ITEMS: MenuItem[] = [
-  {
-    id: "lomo-vetado",
-    name: "Lomo Vetado Angus Premium",
-    category: "carne",
-    price: 18990,
-    description: "Corte de gran infiltración de grasa, garantizando un sabor y jugosidad inigualable a la parrilla.",
-    image: "🥩",
-    badge: "Más Vendido"
-  },
-  {
-    id: "entraña-fina",
-    name: "Entraña Fina Americana",
-    category: "carne",
-    price: 24990,
-    description: "Corte delgado, tierno y de cocción rápida. Ideal para comenzar cualquier asado parrillero.",
-    image: "🥩",
-    badge: "Premium"
-  },
-  {
-    id: "asado-tira",
-    name: "Asado de Tira de Exportación",
-    category: "carne",
-    price: 15990,
-    description: "Corte con hueso ideal para cocciones lentas, logrando que la carne se desprenda sola.",
-    image: "🍖"
-  },
-  {
-    id: "bife-chorizo",
-    name: "Bife de Chorizo Selección",
-    category: "carne",
-    price: 14990,
-    description: "Bife grueso tradicional argentino con una cobertura de grasa que mantiene húmedas las fibras.",
-    image: "🥩"
-  },
-  {
-    id: "costillar-cerdo",
-    name: "Costillar de Cerdo Aliñado",
-    category: "carne",
-    price: 11990,
-    description: "Costillar marinado en nuestra receta secreta de adobos chilenos y especias rústicas.",
-    image: "🍖"
-  },
-  {
-    id: "carbon-espino",
-    name: "Carbón de Espino de Alto Rendimiento (4kg)",
-    category: "abarrotes",
-    price: 5990,
-    description: "Carbón certificado artesanal con alta densidad calórica y durabilidad de braza constante.",
-    image: "🪵",
-    badge: "Indispensable"
-  },
-  {
-    id: "sal-cahuil",
-    name: "Sal de Cahuil Especiada Ahumada",
-    category: "abarrotes",
-    price: 3490,
-    description: "Sal de costa chilena extraída a mano, sazonada con merquén ahumado y romero fresco.",
-    image: "🧂"
-  },
-  {
-    id: "chimichurri",
-    name: "Chimichurri Artesanal Entre Parrilleros",
-    category: "abarrotes",
-    price: 4490,
-    description: "Aderezo tradicional de perejil, ajo, ají y aceites macerados por 15 días.",
-    image: "🥫"
-  },
-  {
-    id: "pisco-artesanal",
-    name: "Pisco Artesanal Mistral / Reservado 40°",
-    category: "abarrotes",
-    price: 12990,
-    description: "El maridaje y bajativo perfecto para coronar una jornada de asado artesanal.",
-    image: "🍾"
-  }
-];
-
 interface LandingPageProps {
   onOrderPlaced: () => void;
 }
 
 export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
+  const [products, setProducts] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<"todos" | "carne" | "abarrotes">("todos");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState("");
@@ -99,8 +22,26 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
 
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch("/api/products");
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchProducts();
+  }, []);
+
   // Filter products
-  const filteredProducts = MENU_ITEMS.filter(item => 
+  const filteredProducts = products.filter(item => 
     selectedCategory === "todos" ? true : item.category === selectedCategory
   );
 
@@ -109,6 +50,14 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
     setCart(prev => {
       const current = prev[itemId] || 0;
       const next = current + increment;
+
+      // Enforce stock limit
+      const product = products.find(p => p.id === itemId);
+      if (product && next > product.stock) {
+        alert(`Lo sentimos, solo quedan ${product.stock} unidades disponibles de este producto.`);
+        return prev;
+      }
+
       if (next <= 0) {
         const copy = { ...prev };
         delete copy[itemId];
@@ -119,7 +68,7 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
   };
 
   const getCartTotal = () => {
-    return MENU_ITEMS.reduce((sum, item) => {
+    return products.reduce((sum, item) => {
       const q = cart[item.id] || 0;
       return sum + (q * item.price);
     }, 0);
@@ -136,7 +85,7 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
     setIsSubmitting(true);
 
     // Build items payload
-    const itemsPayload: OrderItem[] = MENU_ITEMS.filter(item => cart[item.id] > 0).map(item => ({
+    const itemsPayload: OrderItem[] = products.filter(item => cart[item.id] > 0).map(item => ({
       name: item.name,
       category: item.category,
       quantity: cart[item.id],
@@ -169,6 +118,7 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
         setPhone("");
         setNotes("");
         onOrderPlaced(); // Refresh admin side
+        fetchProducts(); // Refresh stock in real time
       } else {
         alert("Ocurrió un error al despachar tu pedido. Por favor, reintenta.");
       }
@@ -179,6 +129,15 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#121212] text-white flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-4 border-t-[#b91c1c] border-zinc-800 rounded-full animate-spin"></div>
+        <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Cargando catálogo premium...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#121212] text-[#e5e5e5]">
@@ -271,6 +230,18 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
                     <p className="text-xs text-zinc-400 mt-2 line-clamp-3 leading-relaxed">
                       {product.description}
                     </p>
+
+                    <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
+                      {product.stock > 0 ? (
+                        <span className="text-zinc-500">
+                          Stock: <span className="text-emerald-500 font-semibold">{product.stock} uds</span>
+                        </span>
+                      ) : (
+                        <span className="text-red-500 font-bold uppercase tracking-wider bg-red-950/30 px-2 py-0.5 border border-red-900/40">
+                          Agotado
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/5">
@@ -290,7 +261,12 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
                         <span className="font-mono text-xs font-bold w-4 text-center text-white">{q}</span>
                         <button 
                           onClick={() => updateQuantity(product.id, 1)}
-                          className="w-7 h-7 flex items-center justify-center rounded-none bg-zinc-800 text-zinc-300 hover:bg-green-950/40 hover:text-green-400 transition text-xs font-mono font-bold"
+                          disabled={q >= product.stock}
+                          className={`w-7 h-7 flex items-center justify-center rounded-none bg-zinc-800 text-zinc-300 transition text-xs font-mono font-bold ${
+                            q >= product.stock
+                              ? "opacity-30 cursor-not-allowed"
+                              : "hover:bg-green-950/40 hover:text-green-400"
+                          }`}
                         >
                           +
                         </button>
@@ -298,10 +274,15 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
                     ) : (
                       <button
                         onClick={() => updateQuantity(product.id, 1)}
-                        className="bg-zinc-850 hover:bg-[#b91c1c] hover:border-[#b91c1c] text-zinc-300 hover:text-white font-mono uppercase tracking-[0.15em] px-4 py-2 rounded-none text-[10px] flex items-center gap-2 transition-all duration-300 border border-white/10 active:scale-95"
+                        disabled={product.stock <= 0}
+                        className={`font-mono uppercase tracking-[0.15em] px-4 py-2 rounded-none text-[10px] flex items-center gap-2 transition-all duration-300 border border-white/10 active:scale-95 ${
+                          product.stock <= 0
+                            ? "bg-zinc-900 border-zinc-850 text-zinc-600 cursor-not-allowed"
+                            : "bg-zinc-850 hover:bg-[#b91c1c] hover:border-[#b91c1c] text-zinc-300 hover:text-white"
+                        }`}
                         id={`add-to-cart-${product.id}`}
                       >
-                        <ShoppingCart className="w-3.5 h-3.5" /> Agregar
+                        <ShoppingCart className="w-3.5 h-3.5" /> {product.stock <= 0 ? "Agotado" : "Agregar"}
                       </button>
                     )}
                   </div>
@@ -394,7 +375,7 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
               >
                 {/* List selected items */}
                 <div className="max-h-60 overflow-y-auto mb-6 pr-2 space-y-3 scrollbar-thin">
-                  {MENU_ITEMS.filter(item => cart[item.id] > 0).map(item => {
+                  {products.filter(item => cart[item.id] > 0).map(item => {
                     const count = cart[item.id];
                     return (
                       <div key={item.id} className="flex items-center justify-between bg-[#121212]/50 p-3 rounded-none border border-white/5">

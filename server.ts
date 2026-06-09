@@ -10,7 +10,8 @@ import {
   getAnalysisDataset, 
   getDbStatus, 
   getDBConnection, 
-  createAnalysisRecord 
+  createAnalysisRecord,
+  getProducts
 } from "./server/db";
 import { 
   performPandasAggregation, 
@@ -99,6 +100,16 @@ async function startServer() {
         ? "¡Conexión establecida con éxito a Laragon MySQL!" 
         : `Fallo al conectar: ${result.error || "Timeout o credenciales incorrectas"}`
     });
+  });
+
+  // PRODUCTS CATALOG
+  app.get("/api/products", async (req, res) => {
+    try {
+      const products = await getProducts();
+      res.json(products);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // 2. CRUD ORDERS
