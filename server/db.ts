@@ -57,7 +57,7 @@ let productsFallback: Product[] = [
     category: "carne",
     price: 18990,
     description: "Corte de gran infiltración de grasa, garantizando un sabor y jugosidad inigualable a la parrilla.",
-    image: "🥩",
+    image: "/images/lomo-vetado.png",
     badge: "Más Vendido",
     stock: 8
   },
@@ -67,7 +67,7 @@ let productsFallback: Product[] = [
     category: "carne",
     price: 24990,
     description: "Corte delgado, tierno y de cocción rápida. Ideal para comenzar cualquier asado parrillero.",
-    image: "🥩",
+    image: "/images/entraña-fina.png",
     badge: "Premium",
     stock: 12
   },
@@ -77,7 +77,7 @@ let productsFallback: Product[] = [
     category: "carne",
     price: 15990,
     description: "Corte con hueso ideal para cocciones lentas, logrando que la carne se desprenda sola.",
-    image: "🍖",
+    image: "/images/asado-tira.png",
     badge: null,
     stock: 15
   },
@@ -87,7 +87,7 @@ let productsFallback: Product[] = [
     category: "carne",
     price: 14990,
     description: "Bife grueso tradicional argentino con una cobertura de grasa que mantiene húmedas las fibras.",
-    image: "🥩",
+    image: "/images/bife-chorizo.png",
     badge: null,
     stock: 20
   },
@@ -97,7 +97,7 @@ let productsFallback: Product[] = [
     category: "carne",
     price: 11990,
     description: "Costillar marinado en nuestra receta secreta de adobos chilenos y especias rústicas.",
-    image: "🍖",
+    image: "/images/costillar-cerdo.png",
     badge: null,
     stock: 10
   },
@@ -107,7 +107,7 @@ let productsFallback: Product[] = [
     category: "abarrotes",
     price: 5990,
     description: "Carbón certificado artesanal con alta densidad calórica y durabilidad de braza constante.",
-    image: "🪵",
+    image: "/images/carbon-espino.png",
     badge: "Indispensable",
     stock: 45
   },
@@ -117,7 +117,7 @@ let productsFallback: Product[] = [
     category: "abarrotes",
     price: 3490,
     description: "Sal de costa chilena extraída a mano, sazonada con merquén ahumado y romero fresco.",
-    image: "🧂",
+    image: "/images/sal-cahuil.png",
     badge: null,
     stock: 30
   },
@@ -127,7 +127,7 @@ let productsFallback: Product[] = [
     category: "abarrotes",
     price: 4490,
     description: "Aderezo tradicional de perejil, ajo, ají y aceites macerados por 15 días.",
-    image: "🥫",
+    image: "/images/chimichurri.png",
     badge: null,
     stock: 25
   },
@@ -137,7 +137,7 @@ let productsFallback: Product[] = [
     category: "abarrotes",
     price: 12990,
     description: "El maridaje y bajativo perfecto para coronar una jornada de asado artesanal.",
-    image: "🍾",
+    image: "/images/pisco-artesanal.png",
     badge: null,
     stock: 18
   }
@@ -342,6 +342,17 @@ async function ensureTablesExist(conn: mysql.Connection) {
           [prod.id, prod.name, prod.category, prod.price, prod.description, prod.image, prod.badge, prod.stock]
         );
       }
+    } else {
+      // Ensure all products have the correct image path instead of emoji
+      await conn.query("UPDATE \`products\` SET image = '/images/lomo-vetado.png' WHERE id = 'lomo-vetado' AND image = '🥩'");
+      await conn.query("UPDATE \`products\` SET image = '/images/entraña-fina.png' WHERE id = 'entraña-fina' AND image = '🥩'");
+      await conn.query("UPDATE \`products\` SET image = '/images/asado-tira.png' WHERE id = 'asado-tira' AND image = '🍖'");
+      await conn.query("UPDATE \`products\` SET image = '/images/bife-chorizo.png' WHERE id = 'bife-chorizo' AND image = '🥩'");
+      await conn.query("UPDATE \`products\` SET image = '/images/costillar-cerdo.png' WHERE id = 'costillar-cerdo' AND image = '🍖'");
+      await conn.query("UPDATE \`products\` SET image = '/images/carbon-espino.png' WHERE id = 'carbon-espino' AND image = '🪵'");
+      await conn.query("UPDATE \`products\` SET image = '/images/sal-cahuil.png' WHERE id = 'sal-cahuil' AND image = '🧂'");
+      await conn.query("UPDATE \`products\` SET image = '/images/chimichurri.png' WHERE id = 'chimichurri' AND image = '🥫'");
+      await conn.query("UPDATE \`products\` SET image = '/images/pisco-artesanal.png' WHERE id = 'pisco-artesanal' AND image = '🍾'");
     }
   } catch (err) {
     console.error("⚠️ Error preparing MySQL database schemas:", err);

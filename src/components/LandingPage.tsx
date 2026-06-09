@@ -219,9 +219,19 @@ export default function LandingPage({ onOrderPlaced }: LandingPageProps) {
                   )}
 
                   <div>
-                    <span className="text-4xl block mb-4 filter group-hover:scale-110 transition-transform duration-300 select-none">
-                      {product.image}
-                    </span>
+                    {product.image.startsWith("/") ? (
+                      <div className="w-full h-44 overflow-hidden mb-4 border border-white/5 bg-zinc-950">
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover filter group-hover:scale-105 transition-transform duration-500 select-none" 
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-4xl block mb-4 filter group-hover:scale-110 transition-transform duration-300 select-none">
+                        {product.image}
+                      </span>
+                    )}
                     
                     <h3 className="font-serif italic text-lg text-white group-hover:text-[#b91c1c] transition-colors leading-snug">
                       {product.name}
